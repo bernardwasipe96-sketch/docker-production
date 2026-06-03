@@ -1,21 +1,26 @@
-FROM python:3.12-alpine AS builder
-
-WORKDIR /install
-
-COPY requirements.txt .
-
-RUN pip install --prefix=/install/deps --no-cache-dir -r requirements.txt
-
-
-FROM python:3.12-alpine
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache curl
+COPY requirements.txt .
 
-COPY --from=builder /install/deps /usr/local
+RUN python -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+
+FROM python:3.11-slim AS runtime
+
+WORKDIR /app
+
+COPY --from=builder /opt/venv /opt/venv
+COPY app.py .
+
+RUN adduser --disabled-password --gecos "" appuser && \
+    chown -R appuser /app
+
+USER appuser
+
+ENV PATH=/opt/venv/bin:$PATH
 
 EXPOSE 5000
 
